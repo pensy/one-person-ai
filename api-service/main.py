@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import create_engine
-from models.database import Base, get_engine
-from models import User, Tool, ToolCall, CreditLog  # noqa: 触发模型注册
+from models.database import Base, get_engine, User, Tool, ToolCall, CreditLog  # noqa: 触发模型注册
 
 # 创建数据库表
 engine = get_engine()
