@@ -25,8 +25,8 @@ services:
 
   api-service:
     build:
-      context: ..
-      dockerfile: deploy/api/Dockerfile
+      context: ../api-service
+      dockerfile: Dockerfile
     container_name: ai-tools-api
     restart: unless-stopped
     ports:
@@ -42,26 +42,11 @@ services:
     networks:
       - ai-tools-net
 
-  frontend:
-    build:
-      context: ..
-      dockerfile: deploy/frontend/Dockerfile
-    container_name: ai-tools-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    depends_on:
-      - api-service
-    networks:
-      - ai-tools-net
-
-  # Worker 服务暂不启动，等 Go 代码完善后开启
+  # Worker 服务暂不启动
   # worker-service:
   #   build:
-  #     context: ..
-  #     dockerfile: deploy/worker/Dockerfile
+  #     context: ../worker-service
+  #     dockerfile: Dockerfile
   #   container_name: ai-tools-worker
   #   restart: unless-stopped
   #   ports:
@@ -71,6 +56,22 @@ services:
   #   depends_on:
   #     mysql:
   #       condition: service_healthy
+  #   networks:
+  #     - ai-tools-net
+
+  # Frontend 暂不启动，等 Next.js 代码写好后再开启
+  # frontend:
+  #   build:
+  #     context: ../frontend
+  #     dockerfile: Dockerfile
+  #   container_name: ai-tools-frontend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://localhost:8000
+  #   depends_on:
+  #     - api-service
   #   networks:
   #     - ai-tools-net
 
