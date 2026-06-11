@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-conf
 COPY pyproject.toml .
 RUN pip install --no-cache-dir poetry && \
     poetry config virtualenvs.create false && \
-    poetry install --no-dev
+    poetry install --only main
 
 COPY . .
 
