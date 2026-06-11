@@ -1,0 +1,15 @@
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+COPY worker-service/go.mod worker-service/go.sum ./
+RUN go mod download
+
+COPY worker-service/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/main .
+EXPOSE 50051
+CMD ["./main"]

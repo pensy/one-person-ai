@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-tools-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ai_tools_db
+      MYSQL_USER: ai_user
+      MYSQL_PASSWORD: ai_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ai-tools-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api-service:
+    build:
+      context: ..
+      dockerfile: deploy/api/Dockerfile
+    container_name: ai-tools-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://ai_user:ai_pass@mysql:3306/ai_tools_db?charset=utf8mb4
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_BASE_URL=https://api.deepseek.com
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ai-tools-net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/frontend/Dockerfile
+    container_name: ai-tools-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api-service
+    networks:
+      - ai-tools-net
+
+  # Worker 服务暂不启动，等 Go 代码完善后开启
+  # worker-service:
+  #   build:
+  #     context: ..
+  #     dockerfile: deploy/worker/Dockerfile
+  #   container_name: ai-tools-worker
+  #   restart: unless-stopped
+  #   ports:
+  #     - "50051:50051"
+  #   environment:
+  #     - DB_DSN=ai_user:ai_pass@tcp(mysql:3306)/ai_tools_db
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   networks:
+  #     - ai-tools-net
+
+networks:
+  ai-tools-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
