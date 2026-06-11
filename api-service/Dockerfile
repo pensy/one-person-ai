@@ -2,12 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# 安装系统依赖
 RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-config && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir poetry && \
-    poetry config virtualenvs.create false && \
-    poetry install --only main
+# 直接用 pip 安装依赖，不依赖 poetry 打包
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
