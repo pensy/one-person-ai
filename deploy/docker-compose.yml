@@ -8,18 +8,17 @@ services:
       MYSQL_DATABASE: ai_tools_db
       MYSQL_USER: ai_user
       MYSQL_PASSWORD: ai_pass
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - ai-tools-net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 10s
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ai-tools-net
 
   api-service:
     build:

@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models.database import Tool, ToolCall, User, CreditLog
-from routes.auth import get_current_user
-from database import get_db
+from models.database import Tool, ToolCall, User, CreditLog, get_db
+from models.auth import get_current_user
 from models import deepseek
 from pydantic import BaseModel
 from datetime import datetime

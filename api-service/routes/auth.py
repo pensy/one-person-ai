@@ -1,31 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models.database import User
-from database import get_db
+from models.database import get_db, User
 from models.auth import (
-    UserCreate, UserLogin, Token, UserResponse,
-    hash_password, verify_password, create_access_token, decode_token,
+    UserCreate, UserLogin, Token, UserResponse, get_current_user,
+    hash_password, verify_password, create_access_token,
 )
 
 router = APIRouter()
-security = HTTPBearer()
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    payload = decode_token(credentials.credentials)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Token 无效或已过期")
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Token 无效")
-    user = db.query(User).filter(User.id == int(user_id)).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="用户不存在或已禁用")
-    return user
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)

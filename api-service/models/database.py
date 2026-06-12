@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, Enum, Boolean, DateTime, Index, ForeignKey
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from config.settings import DATABASE_URL
@@ -73,5 +74,19 @@ class CreditLog(Base):
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
 
+engine = create_engine(DATABASE_URL, echo=True)
+
+
 def get_engine():
-    return create_engine(DATABASE_URL, echo=True)
+    return engine
+
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
