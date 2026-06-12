@@ -10,6 +10,7 @@ import type { Tool } from "@/types/api";
 const categoryLabels: Record<string, string> = {
   code: "代码工具",
   text: "文本工具",
+  data: "数据工具",
 };
 
 const iconMap: Record<string, string> = {
@@ -17,6 +18,10 @@ const iconMap: Record<string, string> = {
   code_review: "🔍",
   text_polish: "✍️",
   text_summary: "📋",
+  sql_generate: "🗄️",
+  regex_generate: "🔮",
+  api_doc: "📖",
+  json_format: "📦",
 };
 
 export default function Home() {
@@ -52,7 +57,7 @@ export default function Home() {
           开发者的 AI 工具箱
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-          代码解释、代码审查、文本润色、内容摘要 — 一个平台搞定你的日常 AI 需求
+          SQL 生成、正则生成、JSON 格式化 — 一个平台搞定你的日常 AI 需求
         </p>
         <div className="flex gap-4 justify-center">
           {!user ? (

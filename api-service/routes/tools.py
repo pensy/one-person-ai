@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models.database import Tool, ToolCall, User, CreditLog, get_db
-from models.auth import get_current_user
+from database import get_db
+from models.database import Tool, ToolCall, User, CreditLog
+from routes.auth import get_current_user
 from models import deepseek
 from pydantic import BaseModel
 from datetime import datetime
@@ -39,6 +40,10 @@ TOOL_HANDLERS = {
     "code_review": deepseek.review_code,
     "text_polish": deepseek.polish_text,
     "text_summary": deepseek.summarize_text,
+    "sql_generate": deepseek.sql_generate,
+    "regex_generate": deepseek.regex_generate,
+    "api_doc": deepseek.api_doc,
+    "json_format": deepseek.json_format,
 }
 
 

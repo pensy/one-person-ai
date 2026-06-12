@@ -62,9 +62,13 @@ CREATE TABLE IF NOT EXISTS credit_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分变动记录表';
 
 -- 插入初始工具数据
-INSERT INTO tools (name, display_name, description, category, credits_cost) VALUES
-('code_explain', '代码解释器', '输入代码，AI 帮你解释逻辑和潜在问题', 'code', 1),
-('code_review', '代码审查', '对代码进行专业审查，给出改进建议', 'code', 2),
-('text_polish', '文本润色', '优化文章表达，让文字更流畅专业', 'text', 1),
-('text_summary', '内容摘要', '长文自动摘要，快速获取核心信息', 'text', 1)
-ON DUPLICATE KEY UPDATE display_name=VALUES(display_name);
+INSERT INTO tools (name, display_name, description, category, credits_cost, sort_order) VALUES
+('code_explain', '代码解释器', '输入代码，AI 帮你解释逻辑和潜在问题', 'code', 1, 1),
+('code_review', '代码审查', '对代码进行专业审查，给出改进建议', 'code', 2, 2),
+('regex_generate', '正则表达式生成器', '自然语言描述转正则，附解释和示例', 'code', 1, 3),
+('api_doc', 'API 文档生成', '从代码自动生成规范的 API 接口文档', 'code', 2, 4),
+('text_polish', '文本润色', '优化文章表达，让文字更流畅专业', 'text', 1, 5),
+('text_summary', '内容摘要', '长文自动摘要，快速获取核心信息', 'text', 1, 6),
+('sql_generate', 'SQL 生成器', '自然语言转 SQL 语句，支持 MySQL/PostgreSQL', 'data', 2, 7),
+('json_format', 'JSON 格式化', 'JSON 美化、结构分析、字段解释', 'data', 1, 8)
+ON DUPLICATE KEY UPDATE display_name=VALUES(display_name), sort_order=VALUES(sort_order);

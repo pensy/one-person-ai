@@ -27,6 +27,26 @@ const toolMap: Record<string, { displayName: string; icon: string; placeholder: 
     icon: "📋",
     placeholder: "粘贴你想摘要的长文本...\n\nAI 会提取核心信息，控制在 200 字以内",
   },
+  sql_generate: {
+    displayName: "SQL 生成器",
+    icon: "🗄️",
+    placeholder: "用自然语言描述你的数据查询需求...\n\n例如：\n查询过去30天注册用户中，订单金额超过1000元的用户列表，按金额降序排列",
+  },
+  regex_generate: {
+    displayName: "正则表达式生成器",
+    icon: "🔮",
+    placeholder: "用自然语言描述匹配规则...\n\n例如：\n匹配中国大陆手机号（支持13/15/17/18/19开头）",
+  },
+  api_doc: {
+    displayName: "API 文档生成",
+    icon: "📖",
+    placeholder: "粘贴你的接口代码...\n\nAI 会生成规范的 API 接口文档，包含参数说明、响应格式、示例等",
+  },
+  json_format: {
+    displayName: "JSON 格式化",
+    icon: "📦",
+    placeholder: "粘贴 JSON 数据...\n\nAI 会帮你美化格式、分析结构、解释字段含义",
+  },
 };
 
 export default function ToolPage() {
