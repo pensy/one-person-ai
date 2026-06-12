@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { useAuth } from "@/lib/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
   const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,31 +17,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.detail || "注册失败");
-        return;
-      }
-      // 注册成功后自动登录
-      const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: form.username, password: form.password }),
-      });
-      const loginData = await loginRes.json();
-      if (loginRes.ok) {
-        localStorage.setItem("token", loginData.access_token);
-        router.push("/");
-      } else {
-        router.push("/login");
-      }
-    } catch {
-      setError("网络错误，请检查后端服务");
+      await register(form.username, form.email, form.password);
+      router.push("/");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "注册失败";
+      setError(message);
     } finally {
       setLoading(false);
     }

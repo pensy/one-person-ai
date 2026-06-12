@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import { useAuth } from "@/lib/auth";
+import { toolsApi, ApiError } from "@/lib/api";
 
 const toolMap: Record<string, { displayName: string; icon: string; placeholder: string }> = {
   code_explain: {
@@ -26,11 +29,10 @@ const toolMap: Record<string, { displayName: string; icon: string; placeholder: 
   },
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export default function ToolPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const toolName = params.name as string;
   const tool = toolMap[toolName];
 
@@ -53,8 +55,7 @@ export default function ToolPage() {
   const handleSubmit = async () => {
     if (!input.trim()) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!user) {
       router.push("/login");
       return;
     }
@@ -64,32 +65,19 @@ export default function ToolPage() {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/tools/call`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          tool_name: toolName,
-          input_text: input,
-        }),
+      const res = await toolsApi.call({
+        tool_name: toolName,
+        input_text: input,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push("/login");
-          return;
-        }
-        setError(data.detail || "调用失败");
+      setOutput(res.output_text || "无输出");
+      // 刷新用户信息（积分已变化）
+      await refreshUser();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push("/login");
         return;
       }
-
-      setOutput(data.output_text || "无输出");
-    } catch (err) {
-      setError("网络错误，请检查后端服务是否启动");
+      setError(err instanceof Error ? err.message : "调用失败");
     } finally {
       setLoading(false);
     }
@@ -97,19 +85,7 @@ export default function ToolPage() {
 
   return (
     <div className="min-h-screen">
-      {/* 导航 */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <a href="/" className="text-xl font-bold text-gray-900">
-            One Person AI
-          </a>
-          <div className="flex items-center gap-4">
-            <a href="/" className="text-sm text-gray-600 hover:text-gray-900">
-              返回首页
-            </a>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* 工具主体 */}
       <div className="max-w-4xl mx-auto px-6 py-10">

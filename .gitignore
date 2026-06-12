@@ -50,3 +50,10 @@ logs/
 # Config - 敏感信息
 config/production.yaml
 **.env.production
+
+# Archives
+*.tar.gz
+*.zip
+
+# Codebuddy
+.codebuddy/

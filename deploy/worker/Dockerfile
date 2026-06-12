@@ -1,10 +1,10 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
-COPY worker-service/go.mod worker-service/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY worker-service/ .
+COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/main.go
 
 FROM alpine:latest

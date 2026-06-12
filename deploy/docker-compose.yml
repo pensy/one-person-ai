@@ -28,6 +28,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - ../.env
     environment:
       - DATABASE_URL=mysql+pymysql://ai_user:ai_pass@mysql:3306/ai_tools_db?charset=utf8mb4
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}

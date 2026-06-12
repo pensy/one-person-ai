@@ -1,1 +1,1 @@
-from .database import User, Tool, ToolCall, CreditLog
+from .database import User, Tool, ToolCall, CreditLog, Base

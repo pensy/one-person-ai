@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,20 +18,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.detail || "登录失败");
-        return;
-      }
-      localStorage.setItem("token", data.access_token);
+      await login(username, password);
       router.push("/");
-    } catch {
-      setError("网络错误，请检查后端服务");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "登录失败";
+      setError(message);
     } finally {
       setLoading(false);
     }
