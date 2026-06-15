@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from config.settings import JWT_SECRET, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from models.database import get_db, User
+from config.settings import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer()
 
 
 # Pydantic 模型
@@ -15,7 +20,7 @@ class UserCreate(BaseModel):
 
 
 class UserLogin(BaseModel):
-    username: str  # 可以是用户名或邮箱
+    username: str
     password: str
 
 
@@ -51,14 +56,30 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_token(token: str) -> dict | None:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except JWTError:
         return None
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    payload = decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token 无效或已过期")
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token 无效")
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="用户不存在或已禁用")
+    return user

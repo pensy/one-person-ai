@@ -2,16 +2,15 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+from config.settings import settings
 
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+load_dotenv()
 
 
 def get_deepseek_client() -> OpenAI:
     return OpenAI(
-        api_key=DEEPSEEK_API_KEY,
-        base_url=DEEPSEEK_BASE_URL,
+        api_key=settings.DEEPSEEK_API_KEY,
+        base_url=settings.DEEPSEEK_BASE_URL,
     )
 
 

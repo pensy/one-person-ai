@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Text, Enum, Boolean, DateTime, Index, ForeignKey
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine, Column, Integer, String, Text, Enum, Boolean, DateTime, Index, ForeignKey
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
+from config.settings import settings
 
 Base = declarative_base()
 
@@ -9,7 +11,7 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = {"comment": "用户表"}
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False, comment="用户名")
     email = Column(String(100), unique=True, nullable=False, comment="邮箱")
     password_hash = Column(String(255), nullable=False, comment="密码哈希")
@@ -24,7 +26,7 @@ class Tool(Base):
     __tablename__ = "tools"
     __table_args__ = {"comment": "AI工具表"}
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50), unique=True, nullable=False, comment="工具名称")
     display_name = Column(String(100), nullable=False, comment="显示名称")
     description = Column(Text, comment="工具描述")
@@ -44,16 +46,15 @@ class ToolCall(Base):
         {"comment": "工具调用记录表"},
     )
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    tool_id = Column(BigInteger, ForeignKey("tools.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    tool_id = Column(Integer, ForeignKey("tools.id", ondelete="CASCADE"), nullable=False)
     credits_used = Column(Integer, nullable=False)
     input_text = Column(Text, comment="输入内容")
     output_text = Column(Text, comment="输出内容")
     status = Column(Enum("success", "failed", "pending", name="call_status"), nullable=False, default="pending")
     error_msg = Column(Text, comment="失败原因")
     ip_address = Column(String(45), comment="IP地址")
-    user_agent = Column(Text, comment="客户端User-Agent")
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
 
@@ -64,10 +65,28 @@ class CreditLog(Base):
         {"comment": "积分变动记录表"},
     )
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     change_amount = Column(Integer, nullable=False, comment="变动数量，正增负减")
     balance_after = Column(Integer, nullable=False, comment="变动后余额")
     reason = Column(String(200), nullable=False, comment="变动原因")
-    related_call_id = Column(BigInteger, ForeignKey("tool_calls.id"), nullable=True)
+    related_call_id = Column(Integer, ForeignKey("tool_calls.id"), nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+
+engine = create_engine(settings.DATABASE_URL, echo=True)
+
+
+def get_engine():
+    return engine
+
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
