@@ -1,11 +1,16 @@
+import logging
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database import get_db
-from models.database import Tool, ToolCall, User, CreditLog
-from routes.auth import get_current_user
+from models.database import Tool, ToolCall, User, CreditLog, get_db
+from models.auth import get_current_user
 from models import deepseek
+from worker_client import submit_task, get_task_status
 from pydantic import BaseModel
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -34,17 +39,50 @@ class ToolCallResponse(BaseModel):
     credits_used: int
 
 
-# 工具名称 -> 实际调用函数的映射
-TOOL_HANDLERS = {
-    "code_explain": deepseek.explain_code,
-    "code_review": deepseek.review_code,
-    "text_polish": deepseek.polish_text,
-    "text_summary": deepseek.summarize_text,
-    "sql_generate": deepseek.sql_generate,
-    "regex_generate": deepseek.regex_generate,
-    "api_doc": deepseek.api_doc,
-    "json_format": deepseek.json_format,
-}
+# Worker 轮询配置
+WORKER_POLL_INTERVAL = 0.5  # 轮询间隔(秒)
+WORKER_TIMEOUT = 60.0  # 同步等待上限(秒),超时按失败处理
+
+
+def invoke_llm(tool_name: str, user_input: str) -> str:
+    """统一 LLM 调用入口:优先走 Worker(gRPC 异步,同步等待结果),
+    Worker 不可达时降级为 API 进程内同步直连。
+
+    这样前端接口保持同步语义(一次请求拿到结果),同时把实际 LLM 计算
+    卸载到 Worker,API 进程不被阻塞。
+    """
+    spec = deepseek.TOOL_SPECS.get(tool_name)
+    if not spec:
+        raise ValueError(f"未知工具: {tool_name}")
+
+    payload = {
+        "prompt": spec["prompt_template"].format(input=user_input),
+        "system_prompt": spec["system_prompt"],
+        "max_tokens": spec.get("max_tokens", 2000),
+        "temperature": 0.7,
+    }
+
+    try:
+        task_id = submit_task("LLM_CALL", payload)
+        return _wait_for_task(task_id)
+    except ConnectionError as e:
+        logger.warning("Worker 不可达,降级同步直连: %s", e)
+        return deepseek.call_tool_directly(tool_name, user_input)
+
+
+def _wait_for_task(task_id: str) -> str:
+    """轮询 Worker 任务直到完成或超时。"""
+    deadline = time.monotonic() + WORKER_TIMEOUT
+    while time.monotonic() < deadline:
+        result = get_task_status(task_id)
+        task_status = result.get("status", "")
+        if task_status == "SUCCEEDED":
+            return result.get("result", "")
+        if task_status == "FAILED":
+            raise RuntimeError(result.get("result", "任务执行失败"))
+        # RUNNING / QUEUED —— 继续轮询
+        time.sleep(WORKER_POLL_INTERVAL)
+    raise TimeoutError(f"Worker 任务 {task_id} 超时({WORKER_TIMEOUT}s)")
 
 
 @router.get("/", response_model=list[ToolOut])
@@ -70,13 +108,12 @@ async def call_tool(
     if current_user.credits < tool.credits_cost:
         raise HTTPException(status_code=403, detail="积分不足")
 
-    handler = TOOL_HANDLERS.get(req.tool_name)
-    if not handler:
+    if tool.name not in deepseek.TOOL_SPECS:
         raise HTTPException(status_code=400, detail=f"工具 {req.tool_name} 暂未实现")
 
-    # 调用 AI
+    # 调用 AI(走 Worker,不可达时降级同步直连)
     try:
-        output = handler(req.input_text)
+        output = invoke_llm(tool.name, req.input_text)
         status_val = "success"
         error_msg = None
     except Exception as e:
