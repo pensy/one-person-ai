@@ -1,0 +1,84 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-tools-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ai_tools_db
+      MYSQL_USER: ai_user
+      MYSQL_PASSWORD: ai_pass
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ai-tools-net
+
+  api-service:
+    build:
+      context: ..
+      dockerfile: api-service/Dockerfile
+    container_name: ai-tools-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=${APP_ENV:-development}
+      - DATABASE_URL=mysql+pymysql://ai_user:ai_pass@mysql:3306/ai_tools_db?charset=utf8mb4
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_BASE_URL=https://api.deepseek.com
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - WORKER_ADDR=worker-service:50051
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ai-tools-net
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: ai-tools-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api-service
+    networks:
+      - ai-tools-net
+
+  worker-service:
+    build:
+      context: ..
+      dockerfile: worker-service/Dockerfile
+    container_name: ai-tools-worker
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+    environment:
+      - GRPC_PORT=50051
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_BASE_URL=https://api.deepseek.com
+      - DEEPSEEK_MODEL=deepseek-chat
+    # gRPC 不需要 MySQL,当前任务状态存内存。启用持久化后再加依赖。
+    networks:
+      - ai-tools-net
+
+networks:
+  ai-tools-net:
+    driver: bridge
+
+volumes:
+  mysql_data:

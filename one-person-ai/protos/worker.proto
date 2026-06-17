@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package worker;
+
+option go_package = "github.com/onepersonai/worker/proto;workerpb";
+
+// Worker 服务:接收并执行异步任务(LLM 调用、PR 审查、工作流步骤)。
+service Worker {
+  // 提交任务,立即返回任务 ID,不阻塞等待结果。
+  rpc SubmitTask(SubmitTaskRequest) returns (SubmitTaskResponse);
+  // 查询任务状态与结果。
+  rpc GetTaskStatus(GetTaskStatusRequest) returns (TaskStatus);
+}
+
+// 任务类型。新增类型时在此追加,Go executor 按 type 分发。
+enum TaskType {
+  TASK_TYPE_UNSPECIFIED = 0;
+  LLM_CALL = 1;        // 单次 LLM 调用(Phase 0 用于链路打通,Phase 1 工作流复用)
+  PR_REVIEW = 2;       // GitHub PR 审查(Phase 2)
+}
+
+enum TaskStatusEnum {
+  TASK_STATUS_UNSPECIFIED = 0;
+  QUEUED = 1;
+  RUNNING = 2;
+  SUCCEEDED = 3;
+  FAILED = 4;
+}
+
+message SubmitTaskRequest {
+  TaskType type = 1;
+  // 任意 JSON 负载。不同任务类型解释不同:
+  //   LLM_CALL:  {"prompt": "...", "system_prompt": "...", "messages": [...]}
+  //   PR_REVIEW: {"diff": "...", "repo": "...", "pr_number": 123}
+  string payload = 2;
+}
+
+message SubmitTaskResponse {
+  string task_id = 1;
+}
+
+message GetTaskStatusRequest {
+  string task_id = 1;
+}
+
+message TaskStatus {
+  string task_id = 1;
+  TaskStatusEnum status = 2;
+  // 任务结果(成功时为输出文本,失败时为错误信息)
+  string result = 3;
+}
