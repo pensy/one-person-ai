@@ -21,10 +21,10 @@ type taskStatus struct {
 
 // Executor 维护任务队列与状态。
 type Executor struct {
-	llm      *llm.Client
-	mu       sync.RWMutex
-	tasks    map[string]*taskStatus
-	nextID   int
+	llm    *llm.Client
+	mu     sync.RWMutex
+	tasks  map[string]*taskStatus
+	nextID int
 }
 
 func New(llmClient *llm.Client) *Executor {
@@ -82,11 +82,11 @@ func (e *Executor) run(taskID string, taskType pb.TaskType, payload string) {
 
 // llmCallPayload 与 Python 侧约定的 JSON 负载格式。
 type llmCallPayload struct {
-	Prompt       string     `json:"prompt"`
-	SystemPrompt string     `json:"system_prompt"`
+	Prompt       string        `json:"prompt"`
+	SystemPrompt string        `json:"system_prompt"`
 	Messages     []llm.Message `json:"messages,omitempty"`
-	MaxTokens    int        `json:"max_tokens,omitempty"`
-	Temperature  float64    `json:"temperature,omitempty"`
+	MaxTokens    int           `json:"max_tokens,omitempty"`
+	Temperature  float64       `json:"temperature,omitempty"`
 }
 
 func (e *Executor) handleLLMCall(ctx context.Context, taskID, payloadJSON string) {

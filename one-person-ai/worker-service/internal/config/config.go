@@ -4,11 +4,11 @@ import "os"
 
 // Config 从环境变量读取。Docker 部署时由 docker-compose 传入。
 type Config struct {
-	GRPCPort         string
-	MySQLDSN         string
-	DeepSeekAPIKey   string
-	DeepSeekBaseURL  string
-	DeepSeekModel    string
+	GRPCPort        string
+	MySQLDSN        string
+	DeepSeekAPIKey  string
+	DeepSeekBaseURL string
+	DeepSeekModel   string
 }
 
 // Load 从环境变量加载配置,带合理默认值。

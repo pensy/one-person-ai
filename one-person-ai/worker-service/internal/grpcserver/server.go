@@ -37,9 +37,9 @@ func (s *Server) GetTaskStatus(ctx context.Context, req *pb.GetTaskStatusRequest
 		}, nil
 	}
 	return &pb.TaskStatus{
-		TaskId:  req.TaskId,
-		Status:  status,
-		Result:  result,
+		TaskId: req.TaskId,
+		Status: status,
+		Result: result,
 	}, nil
 }
 

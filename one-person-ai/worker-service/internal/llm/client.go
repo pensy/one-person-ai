@@ -18,10 +18,10 @@ type Message struct {
 
 // Client 封装对 DeepSeek(OpenAI 兼容)接口的调用。
 type Client struct {
-	apiKey   string
-	baseURL  string
-	model    string
-	httpCli  *http.Client
+	apiKey  string
+	baseURL string
+	model   string
+	httpCli *http.Client
 }
 
 func New(apiKey, baseURL, model string) *Client {
