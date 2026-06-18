@@ -34,3 +34,46 @@ export interface ToolCall {
 export interface ApiError {
   detail: string;
 }
+
+// 工作流(Phase 1)
+export interface WorkflowStep {
+  tool: string;
+  label: string;
+}
+
+export interface Workflow {
+  name: string;
+  display_name: string;
+  description: string;
+  steps: WorkflowStep[];
+  credits_cost: number;
+}
+
+export interface WorkflowStepResult {
+  label: string;
+  tool: string;
+  status: "success" | "failed";
+  output: string | null;
+  error: string | null;
+}
+
+export interface WorkflowRunResponse {
+  id: number;
+  status: "success" | "failed";
+  steps: WorkflowStepResult[];
+  credits_used: number;
+}
+
+// PR 审查(Phase 2)
+export interface PRReviewRequest {
+  repo: string;
+  pr_number: number;
+  github_token: string;
+}
+
+export interface PRReviewResponse {
+  id: number;
+  status: "success" | "failed";
+  output_text: string | null;
+  credits_used: number;
+}

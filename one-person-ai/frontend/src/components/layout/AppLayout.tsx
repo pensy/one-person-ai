@@ -8,7 +8,8 @@ import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { href: "/", label: "工具" },
-  { href: "/content", label: "内容创作" },
+  { href: "/workflow", label: "工作流" },
+  { href: "/pr-review", label: "PR审查" },
   { href: "/dashboard", label: "我的" },
 ];
 

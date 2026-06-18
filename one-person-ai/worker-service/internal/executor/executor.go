@@ -100,8 +100,7 @@ func (e *Executor) run(taskID string, taskType pb.TaskType, payload string) {
 	case pb.TaskType_LLM_CALL:
 		e.handleLLMCall(ctx, taskID, taskType, payload)
 	case pb.TaskType_PR_REVIEW:
-		// Phase 2 实现
-		e.setResult(taskID, taskType, payload, pb.TaskStatusEnum_FAILED, "PR_REVIEW 尚未实现")
+		e.handlePRReview(ctx, taskID, taskType, payload)
 	default:
 		e.setResult(taskID, taskType, payload, pb.TaskStatusEnum_FAILED, fmt.Sprintf("未知任务类型: %v", taskType))
 	}
@@ -147,6 +146,57 @@ func (e *Executor) handleLLMCall(ctx context.Context, taskID string, taskType pb
 	}
 
 	out, err := e.llm.Chat(ctx, msgs, maxTok, temp)
+	if err != nil {
+		e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, err.Error())
+		return
+	}
+	e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_SUCCEEDED, out)
+}
+
+// prReviewPayload 与 Python 侧约定的 PR_REVIEW 负载格式(proto 注释已定义)。
+// API 侧负责用 PAT 拉取 diff,worker 只做 LLM 审查。
+type prReviewPayload struct {
+	Diff      string `json:"diff"`
+	Repo      string `json:"repo"`
+	PRNumber  int    `json:"pr_number"`
+}
+
+// PR_REVIEW 审查系统提示:资深审查专家,关注 bug/安全/性能/可读性。
+const prReviewSystemPrompt = `你是一个资深代码审查专家。请审查给出的 GitHub PR diff,从以下角度给出意见:
+1) 潜在 Bug 或逻辑错误
+2) 安全问题(注入、越权、敏感信息泄露等)
+3) 性能问题
+4) 可读性与代码规范
+5) 改进建议(给出具体示例)
+用中文回答,Markdown 格式,条理清晰。如果 diff 中有值得肯定的地方也简要提及。`
+
+// diff 审查的输入上限(字符),超出截断防 LLM 超长。
+const maxDiffChars = 50000
+
+func (e *Executor) handlePRReview(ctx context.Context, taskID string, taskType pb.TaskType, payloadJSON string) {
+	var p prReviewPayload
+	if err := json.Unmarshal([]byte(payloadJSON), &p); err != nil {
+		e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, fmt.Sprintf("解析负载失败: %v", err))
+		return
+	}
+	if p.Diff == "" {
+		e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, "diff 为空")
+		return
+	}
+
+	// 截断过长 diff(MVP 不分块,直接截断尾部)
+	diff := p.Diff
+	if len(diff) > maxDiffChars {
+		diff = diff[:maxDiffChars] + "\n\n... (diff 过长,已截断,仅审查前 " + fmt.Sprintf("%d", maxDiffChars) + " 字符)"
+	}
+
+	msgs := []llm.Message{
+		{Role: "system", Content: prReviewSystemPrompt},
+		{Role: "user", Content: fmt.Sprintf("请审查以下 PR diff(仓库: %s, PR #%d):\n\n```diff\n%s\n```", p.Repo, p.PRNumber, diff)},
+	}
+
+	// 审查用低温度求稳定,token 上限放宽到 3000
+	out, err := e.llm.Chat(ctx, msgs, 3000, 0.3)
 	if err != nil {
 		e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, err.Error())
 		return

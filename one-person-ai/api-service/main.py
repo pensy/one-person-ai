@@ -53,7 +53,9 @@ async def health_check():
 
 
 # 注册路由
-from routes import auth, tools  # noqa
+from routes import auth, tools, workflows, pr_review  # noqa
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
+app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
+app.include_router(pr_review.router, prefix="/api/pr-review", tags=["pr-review"])
