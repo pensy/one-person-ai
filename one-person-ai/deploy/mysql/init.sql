@@ -61,6 +61,19 @@ CREATE TABLE IF NOT EXISTS credit_logs (
     INDEX idx_user_created (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分变动记录表';
 
+-- Worker 任务表(异步任务持久化)
+CREATE TABLE IF NOT EXISTS worker_tasks (
+    task_id VARCHAR(64) PRIMARY KEY COMMENT '任务ID(task-N-ts)',
+    task_type TINYINT NOT NULL COMMENT '任务类型枚举: 1=LLM_CALL, 2=PR_REVIEW',
+    payload MEDIUMTEXT COMMENT '任务负载JSON',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态枚举: 0=UNSPECIFIED, 1=RUNNING, 2=SUCCEEDED, 3=FAILED',
+    result MEDIUMTEXT COMMENT '执行结果或错误信息',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Worker 异步任务表';
+
 -- 插入初始工具数据
 INSERT INTO tools (name, display_name, description, category, credits_cost, sort_order) VALUES
 ('code_explain', '代码解释器', '输入代码，AI 帮你解释逻辑和潜在问题', 'code', 1, 1),

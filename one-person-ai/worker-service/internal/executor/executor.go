@@ -5,43 +5,68 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/onepersonai/worker/internal/llm"
+	"github.com/onepersonai/worker/internal/store"
 	pb "github.com/onepersonai/worker/proto"
 )
 
-// taskStatus 内部任务状态记录。MVP 用内存 map 存储,重启丢失。
-// 多实例/持久化需求时替换为 MySQL(已引入 gorm,可平滑迁移)。
-type taskStatus struct {
-	status pb.TaskStatusEnum
-	result string
-}
-
-// Executor 维护任务队列与状态。
-type Executor struct {
-	llm    *llm.Client
-	mu     sync.RWMutex
-	tasks  map[string]*taskStatus
-	nextID int
-}
-
-func New(llmClient *llm.Client) *Executor {
-	return &Executor{
-		llm:   llmClient,
-		tasks: make(map[string]*taskStatus),
+// pbToStoreStatus 把 proto 状态映射到 store 状态。
+func pbToStoreStatus(s pb.TaskStatusEnum) store.Status {
+	switch s {
+	case pb.TaskStatusEnum_RUNNING:
+		return store.StatusRunning
+	case pb.TaskStatusEnum_SUCCEEDED:
+		return store.StatusSucceeded
+	case pb.TaskStatusEnum_FAILED:
+		return store.StatusFailed
+	default:
+		return store.StatusUnspecified
 	}
+}
+
+// storeToPBStatus 反向映射。
+func storeToPBStatus(s store.Status) pb.TaskStatusEnum {
+	switch s {
+	case store.StatusRunning:
+		return pb.TaskStatusEnum_RUNNING
+	case store.StatusSucceeded:
+		return pb.TaskStatusEnum_SUCCEEDED
+	case store.StatusFailed:
+		return pb.TaskStatusEnum_FAILED
+	default:
+		return pb.TaskStatusEnum_TASK_STATUS_UNSPECIFIED
+	}
+}
+
+// Executor 维护任务队列与状态。状态持久化由 store.Store 负责
+// (MySQL 或内存),重启不丢失(配置了 DSN 时)。
+type Executor struct {
+	llm   *llm.Client
+	store store.Store
+}
+
+func New(llmClient *llm.Client, s store.Store) *Executor {
+	return &Executor{llm: llmClient, store: s}
 }
 
 // Submit 接收任务并入队执行,立即返回 task_id。
 // 执行是异步的(goroutine),通过 GetStatus 轮询结果。
 func (e *Executor) Submit(taskType pb.TaskType, payload string) string {
-	e.mu.Lock()
-	e.nextID++
-	taskID := fmt.Sprintf("task-%d-%d", e.nextID, time.Now().UnixNano())
-	e.tasks[taskID] = &taskStatus{status: pb.TaskStatusEnum_RUNNING}
-	e.mu.Unlock()
+	// 单调自增 + 纳秒,避免多实例/重启冲突
+	taskID := fmt.Sprintf("task-%d", time.Now().UnixNano())
+
+	task := &store.Task{
+		TaskID:   taskID,
+		TaskType: int(taskType),
+		Payload:  payload,
+		Status:   store.StatusRunning,
+	}
+	if err := e.store.Save(task); err != nil {
+		log.Printf("[executor] 保存任务初始状态失败 task=%s: %v", taskID, err)
+		// 仍继续执行,内存模式下 Get 也能拿到(若 store 是 memory)
+	}
 
 	go e.run(taskID, taskType, payload)
 	return taskID
@@ -49,20 +74,22 @@ func (e *Executor) Submit(taskType pb.TaskType, payload string) string {
 
 // Get 查询任务状态。
 func (e *Executor) Get(taskID string) (pb.TaskStatusEnum, string, bool) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	t, ok := e.tasks[taskID]
+	t, ok, err := e.store.Get(taskID)
+	if err != nil {
+		log.Printf("[executor] 查询任务失败 task=%s: %v", taskID, err)
+		return pb.TaskStatusEnum_TASK_STATUS_UNSPECIFIED, "", false
+	}
 	if !ok {
 		return pb.TaskStatusEnum_TASK_STATUS_UNSPECIFIED, "", false
 	}
-	return t.status, t.result, true
+	return storeToPBStatus(t.Status), t.Result, true
 }
 
 func (e *Executor) run(taskID string, taskType pb.TaskType, payload string) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("[executor] task %s panic: %v", taskID, r)
-			e.setResult(taskID, pb.TaskStatusEnum_FAILED, fmt.Sprintf("内部错误: %v", r))
+			e.setResult(taskID, taskType, payload, pb.TaskStatusEnum_FAILED, fmt.Sprintf("内部错误: %v", r))
 		}
 	}()
 
@@ -71,12 +98,12 @@ func (e *Executor) run(taskID string, taskType pb.TaskType, payload string) {
 
 	switch taskType {
 	case pb.TaskType_LLM_CALL:
-		e.handleLLMCall(ctx, taskID, payload)
+		e.handleLLMCall(ctx, taskID, taskType, payload)
 	case pb.TaskType_PR_REVIEW:
 		// Phase 2 实现
-		e.setResult(taskID, pb.TaskStatusEnum_FAILED, "PR_REVIEW 尚未实现")
+		e.setResult(taskID, taskType, payload, pb.TaskStatusEnum_FAILED, "PR_REVIEW 尚未实现")
 	default:
-		e.setResult(taskID, pb.TaskStatusEnum_FAILED, fmt.Sprintf("未知任务类型: %v", taskType))
+		e.setResult(taskID, taskType, payload, pb.TaskStatusEnum_FAILED, fmt.Sprintf("未知任务类型: %v", taskType))
 	}
 }
 
@@ -89,10 +116,10 @@ type llmCallPayload struct {
 	Temperature  float64       `json:"temperature,omitempty"`
 }
 
-func (e *Executor) handleLLMCall(ctx context.Context, taskID, payloadJSON string) {
+func (e *Executor) handleLLMCall(ctx context.Context, taskID string, taskType pb.TaskType, payloadJSON string) {
 	var p llmCallPayload
 	if err := json.Unmarshal([]byte(payloadJSON), &p); err != nil {
-		e.setResult(taskID, pb.TaskStatusEnum_FAILED, fmt.Sprintf("解析负载失败: %v", err))
+		e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, fmt.Sprintf("解析负载失败: %v", err))
 		return
 	}
 
@@ -100,7 +127,7 @@ func (e *Executor) handleLLMCall(ctx context.Context, taskID, payloadJSON string
 	msgs := p.Messages
 	if len(msgs) == 0 {
 		if p.Prompt == "" {
-			e.setResult(taskID, pb.TaskStatusEnum_FAILED, "prompt 和 messages 至少需要一个")
+			e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, "prompt 和 messages 至少需要一个")
 			return
 		}
 		msgs = make([]llm.Message, 0, 2)
@@ -121,17 +148,21 @@ func (e *Executor) handleLLMCall(ctx context.Context, taskID, payloadJSON string
 
 	out, err := e.llm.Chat(ctx, msgs, maxTok, temp)
 	if err != nil {
-		e.setResult(taskID, pb.TaskStatusEnum_FAILED, err.Error())
+		e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_FAILED, err.Error())
 		return
 	}
-	e.setResult(taskID, pb.TaskStatusEnum_SUCCEEDED, out)
+	e.setResult(taskID, taskType, payloadJSON, pb.TaskStatusEnum_SUCCEEDED, out)
 }
 
-func (e *Executor) setResult(taskID string, status pb.TaskStatusEnum, result string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if t, ok := e.tasks[taskID]; ok {
-		t.status = status
-		t.result = result
+func (e *Executor) setResult(taskID string, taskType pb.TaskType, payload string, status pb.TaskStatusEnum, result string) {
+	task := &store.Task{
+		TaskID:   taskID,
+		TaskType: int(taskType),
+		Payload:  payload,
+		Status:   pbToStoreStatus(status),
+		Result:   result,
+	}
+	if err := e.store.Save(task); err != nil {
+		log.Printf("[executor] 保存任务结果失败 task=%s: %v", taskID, err)
 	}
 }
