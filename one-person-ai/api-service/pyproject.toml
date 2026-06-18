@@ -25,3 +25,12 @@ httpx = "^0.27.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 过滤第三方库的 deprecation 噪音(passlib/pydantic/sqlalchemy),保持输出干净
+filterwarnings = [
+    "ignore::DeprecationWarning:passlib.*",
+    "ignore::DeprecationWarning",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+]
