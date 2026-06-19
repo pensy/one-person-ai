@@ -2,12 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 系统依赖(protobuf-compiler 备用,实际用 grpcio-tools 生成)
+# 换国内 apt 源(腾讯云内网 Debian 源,加速 apt update/install)
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g; s|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g; s|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null; \
+    true
+
+# 系统依赖
 RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-config && rm -rf /var/lib/apt/lists/*
 
-# Python 依赖(含 grpcio-tools)
+# Python 依赖(含 grpcio-tools),pip 用国内源加速
 COPY api-service/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
 # 先复制应用源码(含 protos/ 已生成的 Python gRPC stub,由 scripts/gen_proto.sh 本地生成)
 COPY api-service ./api-service

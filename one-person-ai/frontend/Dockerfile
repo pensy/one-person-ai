@@ -2,6 +2,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# npm/pnpm 用国内源加速
+ENV npm_config_registry=https://registry.npmmirror.com
+
 # 安装 pnpm
 RUN corepack enable && corepack prepare pnpm@9 --activate
 

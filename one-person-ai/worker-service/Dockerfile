@@ -4,6 +4,9 @@ WORKDIR /repo
 
 ENV GOPROXY=https://goproxy.cn,direct
 
+# alpine 换国内源加速 apk
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories
+
 # 复制源码与 proto 定义(context 是仓库根)
 COPY worker-service ./worker-service
 COPY protos ./protos
@@ -22,7 +25,8 @@ RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/main ./cmd/main.go
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /out/main .
 EXPOSE 50051
