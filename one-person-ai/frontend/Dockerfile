@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -16,8 +16,8 @@ RUN npm install --no-audit --no-fund
 COPY . .
 RUN npm run build
 
-# 生产阶段 - 使用 standalone 输出
-FROM node:22-alpine
+# 生产阶段 - 使用 standalone 输出(用 slim 而非 alpine,规避 Next.js 16 在 musl 下 EPERM)
+FROM node:22-slim
 WORKDIR /app
 
 ENV NODE_ENV=production
