@@ -1,0 +1,15 @@
+**/node_modules
+**/.next
+**/.git
+**/.gitignore
+**/*.log
+**/.DS_Store
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/.vscode
+**/.idea
+**/README.md
+**/AGENTS.md
+**/CLAUDE.md

@@ -34,9 +34,9 @@ protoc \
 cat > "$REPO_ROOT/worker-service/proto/go.mod" << 'EOF'
 module github.com/onepersonai/worker/proto
 
-go 1.25
+go 1.24
 EOF
 echo "✅ Go: worker-service/proto/worker.pb.go + worker_grpc.pb.go"
 
 echo ""
-echo "完成。生成文件为编译产物,已加入 .gitignore,无需提交。"
+echo "完成。生成产物已纳入版本控制,提交后即可用于 Docker 构建。"

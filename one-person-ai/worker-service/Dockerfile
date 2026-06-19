@@ -1,16 +1,8 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /repo
 
 ENV GOPROXY=https://goproxy.cn,direct
-
-# 系统依赖:protoc 编译器
-RUN apk add --no-cache protobuf protobuf-dev
-
-# Go 插件用于生成 gRPC 代码
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-ENV PATH="$PATH:/root/go/bin"
 
 # 复制源码与 proto 定义(context 是仓库根)
 COPY worker-service ./worker-service
@@ -18,12 +10,10 @@ COPY protos ./protos
 
 WORKDIR /repo/worker-service
 
-# 先生成 proto 代码(这样 go mod tidy/build 时 proto 包已存在)
-RUN mkdir -p proto && \
-    protoc -I /repo/protos \
-      --go_out=proto --go_opt=paths=source_relative \
-      --go-grpc_out=proto --go-grpc_opt=paths=source_relative \
-      /repo/protos/worker.proto
+# proto 产物由 scripts/gen_proto.sh 在本地生成并随源码 COPY 进来,
+# 避免镜像内安装重型 protoc/apk protobuf(那会拖入 100+ abseil 依赖,极慢)。
+RUN test -f proto/worker.pb.go && test -f proto/worker_grpc.pb.go || \
+    { echo "❌ proto 产物缺失,请在仓库根运行 bash scripts/gen_proto.sh 生成后重新构建"; exit 1; }
 
 # 解析依赖(生成 go.sum 并下载)
 RUN go mod tidy

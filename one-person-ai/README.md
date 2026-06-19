@@ -29,7 +29,7 @@
 |---|---|---|
 | 前端 | Next.js 16 + React 19 + TypeScript + Tailwind v4 | 路由分组 `(app)`/`(auth)`，AppLayout + AuthContext |
 | API 服务 | Python 3.11 + FastAPI + SQLAlchemy 2 + Pydantic Settings | JWT 鉴权、积分系统、限流中间件、gRPC 客户端 |
-| Worker 服务 | Go 1.25 + gRPC + protobuf | 异步任务执行器，内存任务状态，LLM 调用 |
+| Worker 服务 | Go 1.24 + gRPC + protobuf | 异步任务执行器，内存任务状态，LLM 调用 |
 | 数据库 | MySQL 8.0 | 用户/工具/调用记录/积分日志 |
 | 部署 | Docker + docker compose | 四服务编排，健康检查 |
 
@@ -183,7 +183,7 @@ bash one-person-ai/scripts/gen_proto.sh
 # API(需先装依赖: pip install -r api-service/requirements.txt)
 cd one-person-ai/api-service && uvicorn main:app --reload
 
-# Worker(需 Go 1.25+)
+# Worker(需 Go 1.24+)
 cd one-person-ai/worker-service && go run ./cmd/main.go
 
 # 前端(需 pnpm)

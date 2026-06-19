@@ -9,21 +9,12 @@ RUN apt-get update && apt-get install -y gcc default-libmysqlclient-dev pkg-conf
 COPY api-service/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 先复制应用源码
+# 先复制应用源码(含 protos/ 已生成的 Python gRPC stub,由 scripts/gen_proto.sh 本地生成)
 COPY api-service ./api-service
 
-# 生成 Python gRPC stub 到 api-service/protos/
-# 生成后修正 import 路径:grpcio-tools 默认生成 `import worker_pb2`,
-# 但运行时包路径是 `protos.worker_pb2`,需改写 grpc 文件里的 import。
-COPY protos ./protos
-RUN python -m grpc_tools.protoc \
-      -I protos \
-      --python_out=api-service/protos \
-      --grpc_python_out=api-service/protos \
-      protos/worker.proto && \
-    touch api-service/protos/__init__.py && \
-    sed -i 's/^import worker_pb2/from protos import worker_pb2/' api-service/protos/worker_pb2_grpc.py && \
-    ls -la api-service/protos/
+# 校验 proto 产物存在(避免缺失导致运行时 import 失败)
+RUN test -f api-service/protos/worker_pb2.py && test -f api-service/protos/worker_pb2_grpc.py || \
+    { echo "❌ proto 产物缺失,请在仓库根运行 bash scripts/gen_proto.sh 生成后重新构建"; exit 1; }
 
 WORKDIR /app/api-service
 
