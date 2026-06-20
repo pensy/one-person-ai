@@ -22,7 +22,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="One Person AI Company API",
     description="面向开发者的 AI 工具聚合平台",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # CORS —— 从配置读取白名单,生产环境用具体域名
@@ -42,7 +42,7 @@ app.add_middleware(RateLimitMiddleware, max_requests=20, window_seconds=60)
 async def root():
     return {
         "message": "One Person AI Company API is running!",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "status": "ok",
     }
 
