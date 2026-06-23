@@ -78,10 +78,11 @@ async def health_check():
 
 
 # 注册路由
-from routes import auth, tools, workflows, pr_review, admin  # noqa
+from routes import auth, tools, workflows, pr_review, admin, github_webhook  # noqa
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(pr_review.router, prefix="/api/pr-review", tags=["pr-review"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(github_webhook.router, prefix="/api/github", tags=["github"])

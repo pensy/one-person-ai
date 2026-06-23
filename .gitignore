@@ -55,5 +55,8 @@ config/production.yaml
 *.tar.gz
 *.zip
 
+# Secrets
+one-person-ai/deploy/secrets/
+
 # Codebuddy
 .codebuddy/

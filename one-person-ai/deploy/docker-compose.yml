@@ -39,6 +39,12 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
       - WORKER_ADDR=worker-service:50051
+      - GITHUB_APP_ID=${GITHUB_APP_ID:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET:-}
+      - GITHUB_PRIVATE_KEY_PATH=/app/secrets/github-app.pem
+    volumes:
+      - ./secrets/github-app.pem:/app/secrets/github-app.pem:ro
     depends_on:
       mysql:
         condition: service_healthy
