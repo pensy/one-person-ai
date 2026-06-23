@@ -11,6 +11,7 @@ const navLinks = [
   { href: "/workflow", label: "工作流" },
   { href: "/pr-review", label: "PR审查" },
   { href: "/dashboard", label: "我的" },
+  { href: "/admin", label: "管理" },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {

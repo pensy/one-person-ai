@@ -74,7 +74,11 @@ class CreditLog(Base):
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
 
-engine = create_engine(settings.DATABASE_URL, echo=True)
+engine = create_engine(
+    settings.DATABASE_URL,
+    echo=True,
+    connect_args={"charset": "utf8mb4", "use_unicode": 1},
+)
 
 
 def get_engine():

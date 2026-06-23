@@ -1,7 +1,9 @@
 import sys
 
+import grpc
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from config.settings import settings
 from middleware.rate_limit import RateLimitMiddleware
@@ -49,13 +51,37 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """增强健康检查：检测各依赖服务状态。"""
+    checks = {
+        "api": {"status": "ok", "version": "0.2.0"},
+    }
+
+    # MySQL
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        checks["mysql"] = {"status": "ok"}
+    except Exception as e:
+        checks["mysql"] = {"status": "error", "message": str(e)}
+
+    # Worker gRPC
+    try:
+        channel = grpc.insecure_channel(settings.WORKER_ADDR)
+        grpc.channel_ready_future(channel).result(timeout=3)
+        channel.close()
+        checks["worker"] = {"status": "ok"}
+    except Exception as e:
+        checks["worker"] = {"status": "error", "message": str(e)}
+
+    overall = all(v.get("status") == "ok" for v in checks.values())
+    return {"status": "healthy" if overall else "degraded", "checks": checks}
 
 
 # 注册路由
-from routes import auth, tools, workflows, pr_review  # noqa
+from routes import auth, tools, workflows, pr_review, admin  # noqa
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(pr_review.router, prefix="/api/pr-review", tags=["pr-review"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])

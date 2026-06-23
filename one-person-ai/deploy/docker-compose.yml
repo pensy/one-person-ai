@@ -17,6 +17,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/charset.cnf:/etc/mysql/conf.d/charset.cnf
     networks:
       - ai-tools-net
 

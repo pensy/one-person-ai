@@ -16,6 +16,7 @@ export interface Tool {
   description: string | null;
   category: string;
   credits_cost: number;
+  is_active?: boolean;
 }
 
 export interface ToolCall {
@@ -69,6 +70,29 @@ export interface PRReviewRequest {
   repo: string;
   pr_number: number;
   github_token: string;
+}
+
+// 管理后台
+export interface AdminStatusCheck {
+  status: string;
+  version?: string;
+  message?: string;
+}
+
+export interface AdminStatus {
+  api: AdminStatusCheck;
+  mysql: AdminStatusCheck;
+  worker: AdminStatusCheck;
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  credits: number;
+  role: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface PRReviewResponse {
